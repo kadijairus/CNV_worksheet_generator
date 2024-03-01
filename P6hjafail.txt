@@ -120,9 +120,10 @@ Sub ExtractDataFromXML(xmlDoc As Object, bookmarkID As String)
         MsgBox "Ei leidnud infot selle bookmarkID kohta: " & bookmarkID
         Exit Sub
     End If
+    
 
     ' First step: Values > 50000 (Title Genome Studio > 50kb)
-    WriteDataByRange xmlDoc, bookmarkID, 50000000#, 50000, "Genome Studio > 50 kb"
+    WriteDataByRange xmlDoc, bookmarkID, 50000000000000#, 50000, "Genome Studio > 50 kb"
 
     ' Insert an empty row between the two sets of data
     Rows(ActiveSheet.Cells(Rows.Count, 2).End(xlUp).Row + 1 & ":" & ActiveSheet.Cells(Rows.Count, 2).End(xlUp).Row + 1).Insert Shift:=xlDown
@@ -131,7 +132,7 @@ Sub ExtractDataFromXML(xmlDoc As Object, bookmarkID As String)
     WriteDataByRange xmlDoc, bookmarkID, 50000, 20000, "Genome Studio > 20 kb"
 End Sub
 
-Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Long, minValue As Long, title As String)
+Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Double, minValue As Long, title As String)
     ' Check if there are any nodes with the specified bookmarkID
     Dim nodes As Object
     Set nodes = xmlDoc.SelectNodes("//bookmark[sample_id[starts-with(., '" & bookmarkID & "')]]")
@@ -149,6 +150,9 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Long, m
     Cells(lastRow, 2).value = title
     Cells(lastRow, 2).Font.Bold = True
 
+    ' Load gene data from Morbid.txt into an array
+    Dim geneData As Variant
+    geneData = LoadGeneData()
 
     ' Loop through the nodes and extract data based on the specified range
     Dim i As Long
@@ -189,13 +193,59 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Long, m
                     Cells(rowNum, 8).value = value
                     Cells(rowNum, 9).value = comment
 
-                    ' MsgBox "Data written to Row " & rowNum'
+                    ' Match gene data with coordinates
+                    Dim geneNames As String
+                    geneNames = ""
+                    Dim j As Long
+                    For j = LBound(geneData) To UBound(geneData)
+                        If geneData(j, 1) = chrNum And geneData(j, 3) <= baseEndPos And geneData(j, 4) >= baseStartPos Then
+                            If geneNames <> "" Then geneNames = geneNames & ", "
+                            geneNames = geneNames & geneData(j, 2) ' Assuming gene name is in the 2nd column of geneData
+                        End If
+                    Next j
+                    Cells(rowNum, 13).value = geneNames
                 End If
             End If
         End If
     Next i
-
 End Sub
+
+Function LoadGeneData() As Variant
+    ' Load gene data from Morbid.txt into an array
+    Dim geneDataArray As Variant
+    Dim filePath As String
+    Dim fileContent As String
+    Dim fileLines() As String
+    Dim i As Long
+
+    ' Specify the file path
+    filePath = "\\srvlaste\Yhendlabor\GE_Illumina kiip\Kadi\Morbid.txt"
+
+    ' Read the contents of the file
+    Open filePath For Input As #1
+    fileContent = Input$(LOF(1), #1)
+    Close #1
+
+    ' Split the file content into lines
+    fileLines = Split(fileContent, vbCrLf)
+
+    ' Initialize the gene data array
+    ReDim geneDataArray(1 To UBound(fileLines) + 1, 1 To 4)
+
+    ' Loop through the lines and parse gene data
+    For i = LBound(fileLines) To UBound(fileLines)
+        Dim lineData() As String
+        lineData = Split(fileLines(i), vbTab)
+        If UBound(lineData) >= 3 Then ' Ensure lineData has enough elements
+            geneDataArray(i + 1, 1) = lineData(0) ' chr
+            geneDataArray(i + 1, 2) = lineData(1) ' gene_name
+            geneDataArray(i + 1, 3) = lineData(2) ' start
+            geneDataArray(i + 1, 4) = lineData(3) ' end
+        End If
+    Next i
+
+    LoadGeneData = geneDataArray
+End Function
 
 Function ExtractCommentValue(commentText As String) As String
     ' Extract numeric value within brackets from commentText
@@ -322,6 +372,10 @@ Range("B200").Select
 Selection.End(xlUp).Offset(1, 0).Select
 ' Nüüd jätab 2 rida ruumi
 Selection.Offset(2, 0).Select
+
+' Nüüd lisab 8 rida, et vältida lehel olevaid funktsioone
+Rows(Selection.Row + 1 & ":" & Selection.Row + 8).Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove
+
 ' Nüüd jätab meelde koondtabeli lingi ja otsinguala
 Dim strKndtbLink As String
 'Testpath'
