@@ -1,3 +1,20 @@
+Public Sub WorksheetCreator()
+    ' version 2
+    
+    ' 2024-04-12 Kadi Jairus
+    ' Added: Add 1 basepair to all size calculations
+    ' Call cnv_import and retrieve bookmarkID
+
+    ' Call GenomeStudioImportija with the retrieved bookmarkID
+    GenomeStudioImport
+    
+    ' Call the remaining functions as needed
+    'JaluseInfo'
+    PasteSpecialValues
+    ButtonRemove
+    SaveFileWithName
+End Sub
+
 Function cnv_import() As String
     '
     ' cnv_import Macro
@@ -6,11 +23,11 @@ Function cnv_import() As String
     
     ' Prompt the user for input
     Dim bookmarkID As String
-    bookmarkID = InputBox("Sisesta analüüsi E-kood:")
+    bookmarkID = InputBox("Sisesta analÃ¼Ã¼si E-kood:")
     
     ' Check if the user clicked Cancel or entered an empty string
     If bookmarkID = "" Then
-        MsgBox "Sisestamine tühistatud. Makro lõpetatab."
+        MsgBox "Sisestamine tÃ¼histatud. Makro lÃµpetatab."
         Exit Function
     End If
 
@@ -22,32 +39,14 @@ Function cnv_import() As String
 End Function
 
 
-Public Sub Sorteerija()
-
-' Nüüd sorteerib qSNP andmed Max. Log BF väärtuse järgi
-    Range("B2").Select
-    Selection.CurrentRegion.Select
-    Selection.Sort Key1:=Range("I3"), Order1:=xlDescending, Header:=xlGuess
- 
- End Sub
-
-Public Sub KromSuuruseSorteerija()
-
-' Nüüd sorteerib esmalt kromosoomi numbri ja siis esimese aluspaari järgi
-
-Range("B2").Select
-    Selection.CurrentRegion.Select
-    Selection.Sort Key1:=Range("C1"), Order1:=xlAscending, Key2:=Range("D1"), Order2:=xlAscending, Header:=xlYes
-End Sub
-
-Public Sub GenomeStudioImportija()
+Public Sub GenomeStudioImport()
     ' Call cnv_import to get the bookmarkID
     Dim bookmarkID As String
     bookmarkID = cnv_import
 
     ' Prompt the user to select a folder
     ' Display a rmessage
-    MsgBox "Palun näita ette kaust, kus asub uusim GenomeStudio projekt. Sobib kaust, mille nimes on kuupäev."
+    MsgBox "Palun nÃ¤ita ette kaust, kus asub uusim GenomeStudio projekt. Sobib kaust, mille nimes on kuupÃ¤ev."
     Dim selectedFolder As String
     With Application.FileDialog(msoFileDialogFolderPicker)
         .title = "Vali kaust, kus on kiibiandmete kaust ('Bookmark Analyses')."
@@ -55,7 +54,7 @@ Public Sub GenomeStudioImportija()
         If .Show = -1 Then
             selectedFolder = .SelectedItems(1)
         Else
-            MsgBox "Valimine tühistatud. Makro lõpetatab."
+            MsgBox "Valimine tÃ¼histatud. Makro lÃµpetatab."
             Exit Sub
         End If
     End With
@@ -85,9 +84,8 @@ Public Sub GenomeStudioImportija()
     ' Check if an XML file was found
     If xmlFilePath <> "" Then
         ' Parse the specified XML file and extract data based on bookmarkID
-        'MsgBox "Nüüd tahaks xml failiga edasi tegeleda."'
         ProcessXMLFile xmlFilePath, bookmarkID
-        JaluseInfo bookmarkID
+        FooterInfo bookmarkID
     Else
         MsgBox "No XML file found in the specified folder and its subfolders."
     End If
@@ -99,7 +97,7 @@ Sub ProcessXMLFile(filePath As String, bookmarkID As String)
     ' Load XML file
     If xmlDoc.Load(filePath) Then
         ' Extract data based on bookmarkID
-        'MsgBox "Nüüd laen xml andmeid."'
+        'MsgBox "NÃ¼Ã¼d laen xml andmeid."'
         ExtractDataFromXML xmlDoc, bookmarkID
         
     Else
@@ -109,7 +107,7 @@ End Sub
 
 Sub ExtractDataFromXML(xmlDoc As Object, bookmarkID As String)
     ' Write "Genome Studio" in bold to Row 2, Column B
-    'Cells(2, 2).value = "Genome Studio üle 50 kb"'
+    'Cells(2, 2).value = "Genome Studio Ã¼le 50 kb"'
     'Cells(2, 2).Font.Bold = True'
 
     ' Check if there are any nodes with the specified bookmarkID
@@ -181,7 +179,8 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Double,
                 comment = ExtractCommentValue(node.SelectSingleNode("comment").Text)
 
                 ' Check if the data meets the specified range criteria
-                If baseEndPos - baseStartPos > minValue And baseEndPos - baseStartPos < maxValue Then
+                ' Add +1 because last position is also part of the CNV
+                If baseEndPos - baseStartPos + 1 > minValue And baseEndPos - baseStartPos + 1 < maxValue Then
                     ' Write data to Excel columns
                     Dim rowNum As Long
                     rowNum = ActiveSheet.Cells(Rows.Count, 2).End(xlUp).Row + 1
@@ -200,7 +199,7 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Double,
                     For j = LBound(geneData) To UBound(geneData)
                         If geneData(j, 1) = chrNum And geneData(j, 3) <= baseEndPos And geneData(j, 4) >= baseStartPos Then
                             If geneNames <> "" Then geneNames = geneNames & ", "
-                            geneNames = geneNames & geneData(j, 2) ' Assuming gene name is in the 2nd column of geneData
+                            geneNames = geneNames & geneData(j, 2) ' Gene name is in the 2nd column of geneData
                         End If
                     Next j
                     Cells(rowNum, 13).value = geneNames
@@ -293,7 +292,7 @@ Function FindFirstXMLFile(folderPath As String) As String
     Next subFolder
 
     ' Return an empty string if no XML file is found
-    MsgBox "FindFirstXMLFile ebaõnnestus."
+    MsgBox "FindFirstXMLFile ebaÃµnnestus."
     FindFirstXMLFile = ""
 End Function
 
@@ -356,32 +355,32 @@ Function GetNewestFile(folderPath As String) As String
     GetNewestFile = newestFile
 End Function
 
-Public Sub JaluseInfo(bookmarkID As String)
+Public Sub FooterInfo(bookmarkID As String)
 'MsgBox "bookmarkID is " & bookmarkID'
 
 '" & bookmarkID & "'
-Sheets("Tööleht").Select
+Sheets("TÃ¶Ã¶leht").Select
 
 Range("B2").Select
-'Lõpuks lisab B2 lahtrisse bookmarkID et valemis kasutada"
+'Adds bookmarkID to B2 to be used in formula
 Range("B2").value = bookmarkID
 
-' Impordib koondtabelist patsiendi info, lisab analüüsija (sisse logitud kasutaja) ja tänase kuupäeva
-' Esmalt leiab kõige alumise vaba lahtri ja kirjutab sinna pealkirja
+' Imports patient data, adds logged in users name, adds current date
+' Find lowest cell for title
 Range("B200").Select
 Selection.End(xlUp).Offset(1, 0).Select
-' Nüüd jätab 2 rida ruumi
+' Add 2 empty rows
 Selection.Offset(2, 0).Select
 
-' Nüüd lisab 8 rida, et vältida lehel olevaid funktsioone
+' Add 8 rows to avoid functions on the worksheet (cut out longer lines)
 Rows(Selection.Row + 1 & ":" & Selection.Row + 8).Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove
 
-' Nüüd jätab meelde koondtabeli lingi ja otsinguala
+' Remember link to patient data and region
 Dim strKndtbLink As String
 'Testpath'
 'strKndtbLink = "'C:\Users\Loom\Desktop\Testimiseks_2023_GDA\[GDA_38_koond.xlsx]Leht1'"'
 strKndtbLink = "'\\srvlaste\Yhendlabor\GE_Illumina kiip\[GDA_38_koond.xlsx]Leht1'"
-' Lisab jalusesse tulpa B valemid, mis impordivad patsiendi info koondtabelist
+' Add formulas to column B
     ActiveCell.Formula = _
         "=IFERROR(""GDA""&INDEX(" & strKndtbLink & "!R2C1:R5000C21,MATCH(R2C2," & strKndtbLink & "!R2C3:R5000C3,0),2)&""/""&R2C2,""viga"")"
     Selection.Offset(1, 0).Select
@@ -402,8 +401,8 @@ strKndtbLink = "'\\srvlaste\Yhendlabor\GE_Illumina kiip\[GDA_38_koond.xlsx]Leht1
     ' Now, find the newest file in the specified folder for "strNaidust"
     Dim strNaidustFolder As String
     'Testpath'
-    'strNaidustFolder = "C:\Users\Loom\Desktop\Testimiseks_2023_GDA\näidustused\"'
-    strNaidustFolder = "\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_kiip_näidustused\"
+    'strNaidustFolder = "C:\Users\Loom\Desktop\Testimiseks_2023_GDA\nÃ¤idustused\"'
+    strNaidustFolder = "\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_kiip_nÃ¤idustused\"
 
     Dim newestFile As String
     newestFile = GetNewestFile(strNaidustFolder)
@@ -414,7 +413,7 @@ strKndtbLink = "'\\srvlaste\Yhendlabor\GE_Illumina kiip\[GDA_38_koond.xlsx]Leht1
             "= IFERROR(""dr. "" & INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),8)" & _
             "& "" - "" & INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),9)" & _
             "& "" "" & INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),10)" & _
-            "& "" ("" & TEXT(INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),7),""dd.mm.yyyy"") & "")"",""Näidustus:"")"
+            "& "" ("" & TEXT(INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),7),""dd.mm.yyyy"") & "")"",""NÃ¤idustus:"")"
     Else
         MsgBox "No files found in folder: " & strNaidustFolder, vbExclamation
     End If
@@ -440,29 +439,7 @@ End If
 
 End Sub
 
-Public Sub T88leheTegija()
-    ' Call cnv_import and retrieve bookmarkID
-    'Dim bookmarkID As String
-    'bookmarkID = cnv_import
-    
-    ' Check if the user clicked Cancel or entered an empty string
-    'If bookmarkID = "" Then
-        'MsgBox "Sisestamine tühistatud. Makro lõpetatab."
-        'Exit Sub
-    'End If
-
-    ' Call GenomeStudioImportija with the retrieved bookmarkID
-    GenomeStudioImportija
-    
-    ' Call the remaining functions as needed
-    'JaluseInfo'
-    PasteSpecialV22rtused
-    NupuKustutaja
-    NimegaSalvestaja
-End Sub
-
-
-Public Sub NimegaSalvestaja()
+Public Sub SaveFileWithName()
 
 Dim dlgSaveFolder As FileDialog
 Dim sFolderPathForSave As String
@@ -479,23 +456,23 @@ Dim strPatsiendiNimi As String
 strPatsiendiNimi = Range("B200").value
 
 Dim Failinimi As String
-' Salvestab proovi numbri ja nimega, eemaldab läbiva suurtähe
+' Salvestab proovi numbri ja nimega, eemaldab lÃ¤biva suurtÃ¤he
 Failinimi = Range("B2").value & " " & StrConv(strPatsiendiNimi, vbProperCase)
 Range("B200").Delete
 Range("B2").Select
-'Lõpuks lisab algusesse pealkirja tagasi'
+'LÃµpuks lisab algusesse pealkirja tagasi'
 'Range("B2").value = "Genome Studio > 50 kb CNV" ''
 'Selection.Font.Bold = True ''
 
 'First row not needed'
 Rows("2:2").Delete '
 
-MsgBox "Vali kaust kuhu soovid töölehe salvestada"
+MsgBox "Vali kaust kuhu soovid tÃ¶Ã¶lehe salvestada"
 '''
 'Open a Folder picker dialog box.
 Set dlgSaveFolder = Application.FileDialog(msoFileDialogFolderPicker)
 With dlgSaveFolder
-.title = "Vali kaust kuhu soovid töölehe salvestada"
+.title = "Vali kaust kuhu soovid tÃ¶Ã¶lehe salvestada"
 .AllowMultiSelect = False
 .InitialFileName = ThisWorkbook.Path & "\"
 If .Show <> -1 Then GoTo CancelFolderSelection
@@ -513,15 +490,15 @@ MsgBox "Fail nimega '" & Failinimi & "' on salvestatud kausta '" & sFolderPathFo
 End Sub
 
 
-Public Sub PasteSpecialV22rtused()
+Public Sub PasteSpecialValues()
     Columns("A:L").Select
     Selection.Copy
     Selection.PasteSpecial Paste:=xlPasteValues
     Range("B2").Select
 End Sub
 
-Public Sub NupuKustutaja()
-' Kustutab makro käivitamise nupu, et ei saaks enam samale lehele eksportida
+Public Sub ButtonRemove()
+' Delete macro button
     ActiveSheet.Shapes.Range(Array("Button 1")).Select
     Selection.Delete
 End Sub
