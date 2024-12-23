@@ -1,8 +1,10 @@
 Public Sub WorksheetCreator()
-    ' version 3
+    ' version 4
     
-    ' 2024-06-14 Kadi Jairus
-    ' Added: Search indications from xlsm file
+    ' 2024-12-23 Kadi Jairus
+    ' Added: Indication from "Koondtabel", not "Näidustused"
+    ' Added: Hints for user to help to create xml file
+    
     ' Call cnv_import and retrieve bookmarkID
 
     ' Call GenomeStudioImportija with the retrieved bookmarkID
@@ -292,7 +294,7 @@ Function FindFirstXMLFile(folderPath As String) As String
     Next subFolder
 
     ' Return an empty string if no XML file is found
-    MsgBox "FindFirstXMLFile ebaõnnestus."
+    MsgBox "Ei õnnestunud leida xml-faili kaustast Bookmark Analyses. Ekspordi Genome Studiost xml fail: View -> Bookmark Viewer -> Save Selected Bookmark Analysis -> GDA* -> Data -> Bookmark Analyses."
     FindFirstXMLFile = ""
 End Function
 
@@ -398,6 +400,9 @@ strKndtbLink = "'\\srvlaste\Yhendlabor\GE_Illumina kiip\[GDA_38_koond.xlsx]Leht1
         ",MATCH(R2C2," & strKndtbLink & "!R2C3:R5000C3,0),5),6,2))),TODAY(),""YM""),""?"")&""k - ""&"" ik ""&INDEX(" & strKndtbLink & "!R2C1:R5000C21," & _
         "MATCH(R2C2," & strKndtbLink & "!R2C3:R5000C3,0),5)"
     Selection.Offset(1, 0).Select
+    
+    
+    
     ' Now, find the newest file in the specified folder for "strNaidust"
     Dim strNaidustFolder As String
     'Testpath'
@@ -410,14 +415,19 @@ strKndtbLink = "'\\srvlaste\Yhendlabor\GE_Illumina kiip\[GDA_38_koond.xlsx]Leht1
     If newestFile <> "" Then
         ' Modify the formula to use the newest file
         ActiveCell.Formula = _
-            "= IFERROR(""dr. "" & INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),8)" & _
-            "& "" - "" & INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),9)" & _
-            "& "" "" & INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),10)" & _
-            "& "" ("" & TEXT(INDEX('" & newestFile & "'!R1C1:R34C10,(MATCH(R2C2,'" & newestFile & "'!R1C5:R34C5,0)),7),""dd.mm.yyyy"") & "")"",""Näidustus:"")"
+            "=IFERROR(""Proov võetud: "" & TEXT(INDEX('" & newestFile & "'!R1C1:R34C10, MATCH(R2C2, '" & newestFile & "'!R1C5:R34C5, 0), 7), ""dd.mm.yyyy""), ""Proov võetud: ?"")"
+
     Else
         MsgBox "No files found in folder: " & strNaidustFolder, vbExclamation
     End If
     Selection.Offset(1, 0).Select
+    
+    ActiveCell.Formula = _
+        "=""dr. "" &INDEX(" & strKndtbLink & "!R2C1:R5000C21," & _
+        "MATCH(R2C2," & strKndtbLink & "!R2C3:R5000C3,0),6) & "" - "" &INDEX(" & strKndtbLink & "!R2C1:R5000C21," & _
+        "MATCH(R2C2," & strKndtbLink & "!R2C3:R5000C3,0),21)"
+    Selection.Offset(1, 0).Select
+    
     ActiveCell.Formula = _
         "=""Sooline profiil: ""&INDEX(" & strKndtbLink & "!R2C1:R5000C21," & _
         "MATCH(R2C2," & strKndtbLink & "!R2C3:R5000C3,0),8)"
