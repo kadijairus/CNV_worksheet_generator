@@ -1,8 +1,19 @@
+'**********************************************************************************
+' Purpose:      Import patient data
+' Input:        Patient data in Excel worksheets
+'               Illumina Genome Studio .xlm Bookmark file
+' Output:       A .xlsx file with patient data combined with correct CNV-s
+' Version:      v5 30.01.2025
+' Changes:      Added chromosome cytoband
+' Author:       Kadi Jairus
+'               kadi.jairus@kliinikum.ee
+'*********************************************************************************
+
 Public Sub WorksheetCreator()
     ' version 4
     
     ' 2024-12-23 Kadi Jairus
-    ' Added: Indication from "Koondtabel", not "Näidustused"
+    ' Added: Indication from "Koondtabel", not "NÃ¤idustused"
     ' Added: Hints for user to help to create xml file
     
     ' Call cnv_import and retrieve bookmarkID
@@ -25,11 +36,11 @@ Function cnv_import() As String
     
     ' Prompt the user for input
     Dim bookmarkID As String
-    bookmarkID = InputBox("Sisesta analüüsi E-kood:")
+    bookmarkID = InputBox("Sisesta analÃ¼Ã¼si E-kood:")
     
     ' Check if the user clicked Cancel or entered an empty string
     If bookmarkID = "" Then
-        MsgBox "Sisestamine tühistatud. Makro lõpetatab."
+        MsgBox "Sisestamine tÃ¼histatud. Makro lÃµpetatab."
         Exit Function
     End If
 
@@ -48,7 +59,7 @@ Public Sub GenomeStudioImport()
 
     ' Prompt the user to select a folder
     ' Display a rmessage
-    MsgBox "Palun näita ette kaust, kus asub uusim GenomeStudio projekt. Sobib kaust, mille nimes on kuupäev."
+    MsgBox "Palun nÃ¤ita ette kaust, kus asub uusim GenomeStudio projekt. Sobib kaust, mille nimes on kuupÃ¤ev."
     Dim selectedFolder As String
     With Application.FileDialog(msoFileDialogFolderPicker)
         .title = "Vali kaust, kus on kiibiandmete kaust ('Bookmark Analyses')."
@@ -56,7 +67,7 @@ Public Sub GenomeStudioImport()
         If .Show = -1 Then
             selectedFolder = .SelectedItems(1)
         Else
-            MsgBox "Valimine tühistatud. Makro lõpetatab."
+            MsgBox "Valimine tÃ¼histatud. Makro lÃµpetatab."
             Exit Sub
         End If
     End With
@@ -89,7 +100,7 @@ Public Sub GenomeStudioImport()
         ProcessXMLFile xmlFilePath, bookmarkID
         FooterInfo bookmarkID
     Else
-        MsgBox "No XML file found in the specified folder and its subfolders."
+        MsgBox "Ei leidnud XML faili Genome Studio Bookmark Analyses kaustast."
     End If
 End Sub
 Sub ProcessXMLFile(filePath As String, bookmarkID As String)
@@ -99,17 +110,17 @@ Sub ProcessXMLFile(filePath As String, bookmarkID As String)
     ' Load XML file
     If xmlDoc.Load(filePath) Then
         ' Extract data based on bookmarkID
-        'MsgBox "Nüüd laen xml andmeid."'
+        'MsgBox "NÃ¼Ã¼d laen xml andmeid."'
         ExtractDataFromXML xmlDoc, bookmarkID
         
     Else
-        MsgBox "Error loading XML file: " & filePath
+        MsgBox "Viga XML faili laadimisel siit: " & filePath
     End If
 End Sub
 
 Sub ExtractDataFromXML(xmlDoc As Object, bookmarkID As String)
     ' Write "Genome Studio" in bold to Row 2, Column B
-    'Cells(2, 2).value = "Genome Studio üle 50 kb"'
+    'Cells(2, 2).value = "Genome Studio Ã¼le 50 kb"'
     'Cells(2, 2).Font.Bold = True'
 
     ' Check if there are any nodes with the specified bookmarkID
@@ -138,7 +149,7 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Double,
     Set nodes = xmlDoc.SelectNodes("//bookmark[sample_id[starts-with(., '" & bookmarkID & "')]]")
 
     If nodes Is Nothing Then
-        MsgBox "No data found for bookmarkID: " & bookmarkID
+        MsgBox "Ei leidnud infot selle bookmarkID kohta: " & bookmarkID
         Exit Sub
     End If
     
@@ -153,6 +164,10 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Double,
     ' Load gene data from Morbid.txt into an array
     Dim geneData As Variant
     geneData = LoadGeneData()
+
+    ' Load cytoband data from file
+    Dim cytoBandData As Variant
+    cytoBandData = loadCytoBandData()
 
     ' Loop through the nodes and extract data based on the specified range
     Dim i As Long
@@ -205,11 +220,79 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Double,
                         End If
                     Next j
                     Cells(rowNum, 13).value = geneNames
+
+                    ' Match cytoband data with coordinates
+                    Dim cytoBandName As String
+                    cytoBandName = ""
+                    Dim k As Long
+                    For k = LBound(cytoBandData) To UBound(cytoBandData)
+                        If cytoBandData(k, 1) = "chr" & chrNum And cytoBandData(k, 2) <= baseEndPos And cytoBandData(k, 3) >= baseStartPos Then
+                            If cytoBandName <> "" Then cytoBandName = cytoBandName & ", "
+                            cytoBandName = cytoBandName & cytoBandData(k, 4) ' Cytoband name is in the 4th column
+                        End If
+                    Next k
+                    Cells(rowNum, 10).value = chrNum & cytoBandName
                 End If
             End If
         End If
     Next i
 End Sub
+
+Function loadCytoBandData() As Variant
+    Dim cytoBandDataArray As Variant
+    Dim cytoBandPath As String
+    Dim cytoBandFileContent As String
+    Dim cytoBandFileLines() As String
+    Dim i As Long, rowIndex As Long
+    cytoBandPath = "\\srvlaste\Yhendlabor\GE_Illumina kiip\Kadi\cytoband.txt"
+
+    ' Read the contents of the file
+    Open cytoBandPath For Input As #1
+    cytoBandFileContent = Input$(LOF(1), #1)
+    Close #1
+
+    ' Debug: Check if file read successfully
+    'MsgBox "File loaded. Total characters: " & Len(cytoBandFileContent)
+
+    ' Handle different line endings
+    If InStr(cytoBandFileContent, vbCrLf) > 0 Then
+        cytoBandFileLines = Split(cytoBandFileContent, vbCrLf)
+    Else
+        cytoBandFileLines = Split(cytoBandFileContent, vbLf)
+    End If
+
+    ' Initialize the cytoband data array
+    ReDim cytoBandDataArray(1 To UBound(cytoBandFileLines), 1 To 5)
+
+    rowIndex = 1 ' Proper indexing
+
+    ' Loop through the lines and parse cytoband data
+    For i = LBound(cytoBandFileLines) To UBound(cytoBandFileLines)
+        If Trim(cytoBandFileLines(i)) <> "" Then ' Ignore empty lines
+            Dim lineData() As String
+            lineData = Split(cytoBandFileLines(i), vbTab)
+
+            ' Ensure enough columns exist
+            If UBound(lineData) >= 4 Then
+                cytoBandDataArray(rowIndex, 1) = Trim(lineData(0)) ' chr (e.g., chr1, chr2)
+                cytoBandDataArray(rowIndex, 2) = CLng(lineData(1)) ' start position
+                cytoBandDataArray(rowIndex, 3) = CLng(lineData(2)) ' end position
+                cytoBandDataArray(rowIndex, 4) = Trim(lineData(3)) ' band name
+
+                rowIndex = rowIndex + 1
+            End If
+        End If
+    Next i
+
+    ' Resize array to fit only valid data
+    ReDim Preserve cytoBandDataArray(1 To rowIndex - 1, 1 To 5)
+
+    ' Debug: Confirm total loaded rows
+    'MsgBox "Cytoband data loaded. Total valid rows: " & rowIndex - 1
+
+    loadCytoBandData = cytoBandDataArray
+End Function
+
 
 Function LoadGeneData() As Variant
     ' Load gene data from Morbid.txt into an array
@@ -294,7 +377,7 @@ Function FindFirstXMLFile(folderPath As String) As String
     Next subFolder
 
     ' Return an empty string if no XML file is found
-    MsgBox "Ei õnnestunud leida xml-faili kaustast Bookmark Analyses. Ekspordi Genome Studiost xml fail: View -> Bookmark Viewer -> Save Selected Bookmark Analysis -> GDA* -> Data -> Bookmark Analyses."
+    MsgBox "Ei Ãµnnestunud leida xml-faili kaustast Bookmark Analyses. Ekspordi Genome Studiost xml fail: View -> Bookmark Viewer -> Save Selected Bookmark Analysis -> GDA* -> Data -> Bookmark Analyses."
     FindFirstXMLFile = ""
 End Function
 
@@ -361,7 +444,7 @@ Public Sub FooterInfo(bookmarkID As String)
 'MsgBox "bookmarkID is " & bookmarkID'
 
 '" & bookmarkID & "'
-Sheets("Tööleht").Select
+Sheets("TÃ¶Ã¶leht").Select
 
 Range("B2").Select
 'Adds bookmarkID to B2 to be used in formula
@@ -406,8 +489,8 @@ strKndtbLink = "'\\srvlaste\Yhendlabor\GE_Illumina kiip\[GDA_38_koond.xlsx]Leht1
     ' Now, find the newest file in the specified folder for "strNaidust"
     Dim strNaidustFolder As String
     'Testpath'
-    'strNaidustFolder = "C:\Users\Loom\Desktop\Testimiseks_2023_GDA\näidustused\"'
-    strNaidustFolder = "\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_kiip_näidustused\"
+    'strNaidustFolder = "C:\Users\Loom\Desktop\Testimiseks_2023_GDA\nÃ¤idustused\"'
+    strNaidustFolder = "\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_kiip_nÃ¤idustused\"
 
     Dim newestFile As String
     newestFile = GetNewestFile(strNaidustFolder)
@@ -415,10 +498,10 @@ strKndtbLink = "'\\srvlaste\Yhendlabor\GE_Illumina kiip\[GDA_38_koond.xlsx]Leht1
     If newestFile <> "" Then
         ' Modify the formula to use the newest file
         ActiveCell.Formula = _
-            "=IFERROR(""Proov võetud: "" & TEXT(INDEX('" & newestFile & "'!R1C1:R34C10, MATCH(R2C2, '" & newestFile & "'!R1C5:R34C5, 0), 7), ""dd.mm.yyyy""), ""Proov võetud: ?"")"
+            "=IFERROR(""Proov vÃµetud: "" & TEXT(INDEX('" & newestFile & "'!R1C1:R34C10, MATCH(R2C2, '" & newestFile & "'!R1C5:R34C5, 0), 7), ""dd.mm.yyyy""), ""Proov vÃµetud: ?"")"
 
     Else
-        MsgBox "No files found in folder: " & strNaidustFolder, vbExclamation
+        MsgBox "Ei leidnud nÃ¤idustuste faili sellest kaustast: " & strNaidustFolder, vbExclamation
     End If
     Selection.Offset(1, 0).Select
     
@@ -466,23 +549,23 @@ Dim strPatsiendiNimi As String
 strPatsiendiNimi = Range("B200").value
 
 Dim Failinimi As String
-' Salvestab proovi numbri ja nimega, eemaldab läbiva suurtähe
+' Salvestab proovi numbri ja nimega, eemaldab lÃ¤biva suurtÃ¤he
 Failinimi = Range("B2").value & " " & StrConv(strPatsiendiNimi, vbProperCase)
 Range("B200").Delete
 Range("B2").Select
-'Lõpuks lisab algusesse pealkirja tagasi'
+'LÃµpuks lisab algusesse pealkirja tagasi'
 'Range("B2").value = "Genome Studio > 50 kb CNV" ''
 'Selection.Font.Bold = True ''
 
 'First row not needed'
 Rows("2:2").Delete '
 
-MsgBox "Vali kaust kuhu soovid töölehe salvestada"
+MsgBox "Vali kaust kuhu soovid tÃ¶Ã¶lehe salvestada"
 '''
 'Open a Folder picker dialog box.
 Set dlgSaveFolder = Application.FileDialog(msoFileDialogFolderPicker)
 With dlgSaveFolder
-.title = "Vali kaust kuhu soovid töölehe salvestada"
+.title = "Vali kaust kuhu soovid tÃ¶Ã¶lehe salvestada"
 .AllowMultiSelect = False
 .InitialFileName = ThisWorkbook.Path & "\"
 If .Show <> -1 Then GoTo CancelFolderSelection
