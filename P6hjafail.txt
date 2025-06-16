@@ -3,18 +3,13 @@
 ' Input:        Patient data in Excel worksheets
 '               Illumina Genome Studio .xlm Bookmark file
 ' Output:       A .xlsx file with patient data combined with correct CNV-s
-' Version:      v5 30.01.2025
-' Changes:      Added chromosome cytoband
+' Version:      v6 16.06.2025
+' Changes:      Fixed missing CNV size bug
 ' Author:       Kadi Jairus
 '               kadi.jairus@kliinikum.ee
 '*********************************************************************************
 
 Public Sub WorksheetCreator()
-    ' version 4
-    
-    ' 2024-12-23 Kadi Jairus
-    ' Added: Indication from "Koondtabel", not "Näidustused"
-    ' Added: Hints for user to help to create xml file
     
     ' Call cnv_import and retrieve bookmarkID
 
@@ -206,6 +201,8 @@ Sub WriteDataByRange(xmlDoc As Object, bookmarkID As String, maxValue As Double,
                     Cells(rowNum, 3).value = chrNum
                     Cells(rowNum, 4).value = baseStartPos
                     Cells(rowNum, 5).value = baseEndPos
+                    ' Calculate and write the CNV size to column 6 (F)
+                    Cells(rowNum, 6).value = baseEndPos - baseStartPos + 1
                     Cells(rowNum, 8).value = value
                     Cells(rowNum, 9).value = comment
 
